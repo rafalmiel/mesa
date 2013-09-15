@@ -8460,7 +8460,28 @@
 
 <xi:include href="ARB_ES3_compatibility.xml" xmlns:xi="http://www.w3.org/2001/XInclude"/>
 
-<!-- ARB extensions #128...#131 -->
+<!-- ARB extension #120 -->
+
+<category name="GL_ARB_clear_buffer_object" number="121">
+  <function name="ClearBufferData" offset="assign">
+    <param name="target" type="GLenum" />
+    <param name="internalformat" type="GLenum" />
+    <param name="format" type="GLenum" />
+    <param name="type" type="GLenum" />
+    <param name="data" type="const GLvoid *" />
+  </function>
+  <function name="ClearBufferSubData" offset="assign">
+    <param name="target" type="GLenum" />
+    <param name="internalformat" type="GLenum" />
+    <param name="offset" type="GLintptr" />
+    <param name="size" type="GLsizeiptr" />
+    <param name="format" type="GLenum" />
+    <param name="type" type="GLenum" />
+    <param name="data" type="const GLvoid *" />
+  </function>
+</category>
+
+<!-- ARB extensions #122...#131 -->
 
 <xi:include href="ARB_invalidate_subdata.xml" xmlns:xi="http://www.w3.org/2001/XInclude"/>
 

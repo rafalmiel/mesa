@@ -2313,3 +2313,19 @@ _mesa_InvalidateBufferData(GLuint buffer)
     */
    return;
 }
+
+
+void GLAPIENTRY
+_mesa_ClearBufferData(GLenum target, GLenum internalformat, GLenum format, GLenum type,
+                      const GLvoid * data)
+{
+
+}
+
+
+void GLAPIENTRY
+_mesa_ClearBufferSubData(GLenum target, GLenum internalformat, GLintptr offset, GLsizeiptr size,
+                         GLenum format, GLenum type, const GLvoid * data)
+{
+
+}
