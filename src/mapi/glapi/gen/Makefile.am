@@ -109,6 +109,7 @@ API_XML = \
 	ARB_internalformat_query.xml \
 	ARB_invalidate_subdata.xml \
 	ARB_map_buffer_range.xml \
+	ARB_program_interface_query.xml \
 	ARB_robustness.xml \
 	ARB_sample_shading.xml \
 	ARB_sampler_objects.xml \

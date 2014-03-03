@@ -76,6 +76,7 @@ header = """/**
 #include "main/fog.h"
 #include "main/fbobject.h"
 #include "main/framebuffer.h"
+#include "main/getprogram.h"
 #include "main/genmipmap.h"
 #include "main/hint.h"
 #include "main/histogram.h"
