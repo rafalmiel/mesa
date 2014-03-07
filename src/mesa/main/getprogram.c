@@ -24,6 +24,103 @@
 
 #include "getprogram.h"
 #include "errors.h"
+#include "uniforms.h"
+#include "shaderobj.h"
+
+void GLAPIENTRY
+_mesa_GetProgramInterfaceiv(GLuint program, GLenum programInterface,
+                            GLenum pname, GLint *params)
+{
+   GET_CURRENT_CONTEXT(ctx);
+
+   switch (pname) {
+   case GL_ACTIVE_RESOURCES:
+      switch (programInterface) {
+      case GL_UNIFORM:
+      {
+         struct gl_shader_program *shProg =
+               _mesa_lookup_shader_program_err(ctx, program,
+                                               "glGetProgramInterfaceiv");
+
+         if (shProg && shProg->LinkStatus) {
+            *params = shProg->NumUserUniformStorage;
+         }
+      }
+         break;
+
+      case GL_UNIFORM_BLOCK:
+      {
+         struct gl_shader_program *shProg =
+               _mesa_lookup_shader_program_err(ctx, program,
+                                               "glGetProgramInterfaceiv");
+
+         if (shProg && shProg->LinkStatus) {
+            *params = shProg->NumUniformBlocks;
+         }
+      }
+         break;
+
+      case GL_ATOMIC_COUNTER_BUFFER:
+      {
+         struct gl_shader_program *shProg =
+               _mesa_lookup_shader_program_err(ctx, program,
+                                               "glGetProgramInterfaceiv");
+
+         if (shProg && shProg->LinkStatus) {
+            *params = shProg->NumAtomicBuffers;
+         }
+      }
+         break;
+
+      case GL_PROGRAM_INPUT:
+      {
+         struct gl_shader_program *shProg =
+               _mesa_lookup_shader_program_err(ctx, program,
+                                               "glGetProgramInterfaceiv");
+
+         if (shProg && shProg->LinkStatus) {
+            *params = _mesa_count_active_attribs(shProg);
+         }
+      }
+         break;
+
+      case GL_PROGRAM_OUTPUT:
+      {
+         struct gl_shader_program *shProg =
+               _mesa_lookup_shader_program_err(ctx, program,
+                                               "glGetProgramInterfaceiv");
+
+         if (shProg && shProg->LinkStatus) {
+            *params = _mesa_count_active_program_outputs(shProg);
+         }
+      }
+         break;
+
+      case GL_TRANSFORM_FEEDBACK_VARYING:
+      {
+         struct gl_shader_program *shProg =
+               _mesa_lookup_shader_program_err(ctx, program,
+                                               "glGetProgramInterfaceiv");
+
+         if (shProg && shProg->LinkStatus) {
+            *params = shProg->TransformFeedback.NumVarying;
+         }
+      }
+         break;
+      }
+
+      break;
+   case GL_MAX_NAME_LENGTH:
+
+      break;
+   case GL_MAX_NUM_ACTIVE_VARIABLES:
+
+      break;
+   case GL_MAX_NUM_COMPATIBLE_SUBROUTINES:
+      _mesa_error(ctx, GL_INVALID_OPERATION, "glGetProgramInterfaceiv");
+      break;
+   }
+
 
 void GLAPIENTRY
 _mesa_GetProgramInterfaceiv(GLuint program, GLenum programInterface, GLenum pname,
