@@ -702,7 +702,7 @@ _mesa_GetQueryObjecti64v(GLuint id, GLenum pname, GLint64EXT *params)
 
    if (!q || q->Active) {
       _mesa_error(ctx, GL_INVALID_OPERATION,
-                  "glGetQueryObjectui64vARB(id=%d is invalid or active)", id);
+                  "glGetQueryObjecti64vARB(id=%d is invalid or active)", id);
       return;
    }
 
@@ -746,7 +746,7 @@ _mesa_GetQueryObjectui64v(GLuint id, GLenum pname, GLuint64EXT *params)
 
    if (!q || q->Active) {
       _mesa_error(ctx, GL_INVALID_OPERATION,
-                  "glGetQueryObjectuui64vARB(id=%d is invalid or active)", id);
+                  "glGetQueryObjectui64vARB(id=%d is invalid or active)", id);
       return;
    }
 
