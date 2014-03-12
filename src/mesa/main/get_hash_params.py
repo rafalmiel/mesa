@@ -365,6 +365,9 @@ descriptor=[
   [ "UNIFORM_BUFFER_OFFSET_ALIGNMENT", "CONTEXT_INT(Const.UniformBufferOffsetAlignment), extra_ARB_uniform_buffer_object" ],
   [ "UNIFORM_BUFFER_BINDING", "LOC_CUSTOM, TYPE_INT, 0, extra_ARB_uniform_buffer_object" ],
 
+# GL_ARB_query_buffer_object
+  [ "QUERY_BUFFER_BINDING", "LOC_CUSTOM, TYPE_INT, 0, extra_ARB_query_buffer_object" ],
+
 # GL_ARB_vertex_shader
   [ "MAX_VERTEX_UNIFORM_COMPONENTS_ARB", "CONTEXT_INT(Const.Program[MESA_SHADER_VERTEX].MaxUniformComponents), extra_ARB_vertex_shader" ],
   [ "MAX_VARYING_FLOATS_ARB", "LOC_CUSTOM, TYPE_INT, 0, extra_ARB_vertex_shader" ],
