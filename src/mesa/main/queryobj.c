@@ -596,6 +596,10 @@ _mesa_GetQueryObjectiv(GLuint id, GLenum pname, GLint *params)
    }
 
    switch (pname) {
+      case GL_QUERY_RESULT_NO_WAIT:
+         if (!q->Ready)
+            return;
+         /* fallthrough */
       case GL_QUERY_RESULT_ARB:
          if (!q->Ready)
             ctx->Driver.WaitQuery(ctx, q);
@@ -647,6 +651,10 @@ _mesa_GetQueryObjectuiv(GLuint id, GLenum pname, GLuint *params)
    }
 
    switch (pname) {
+      case GL_QUERY_RESULT_NO_WAIT:
+         if (!q->Ready)
+            return;
+         /* fallthrough */
       case GL_QUERY_RESULT_ARB:
          if (!q->Ready)
             ctx->Driver.WaitQuery(ctx, q);
@@ -701,6 +709,10 @@ _mesa_GetQueryObjecti64v(GLuint id, GLenum pname, GLint64EXT *params)
    }
 
    switch (pname) {
+      case GL_QUERY_RESULT_NO_WAIT:
+         if (!q->Ready)
+            return;
+         /* fallthrough */
       case GL_QUERY_RESULT_ARB:
          if (!q->Ready)
             ctx->Driver.WaitQuery(ctx, q);
@@ -741,6 +753,10 @@ _mesa_GetQueryObjectui64v(GLuint id, GLenum pname, GLuint64EXT *params)
    }
 
    switch (pname) {
+      case GL_QUERY_RESULT_NO_WAIT:
+         if (!q->Ready)
+            return;
+         /* fallthrough */
       case GL_QUERY_RESULT_ARB:
          if (!q->Ready)
             ctx->Driver.WaitQuery(ctx, q);
