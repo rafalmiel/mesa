@@ -8373,6 +8373,10 @@
     </function>
 </category>
 
+<!-- ARB extension #145...#147. -->
+
+<xi:include href="ARB_query_buffer_object.xml" xmlns:xi="http://www.w3.org/2001/XInclude"/>
+
 <!-- Non-ARB extensions sorted by extension number. -->
 
 <category name="GL_EXT_blend_color" number="2">
