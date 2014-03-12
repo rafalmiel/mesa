@@ -89,6 +89,8 @@ get_buffer_target(struct gl_context *ctx, GLenum target)
       return &ctx->CopyReadBuffer;
    case GL_COPY_WRITE_BUFFER:
       return &ctx->CopyWriteBuffer;
+   case GL_QUERY_BUFFER:
+      return &ctx->QueryBuffer;
    case GL_DRAW_INDIRECT_BUFFER:
       if (ctx->API == API_OPENGL_CORE &&
           ctx->Extensions.ARB_draw_indirect) {
@@ -834,6 +836,9 @@ _mesa_init_buffer_objects( struct gl_context *ctx )
 
    _mesa_reference_buffer_object(ctx, &ctx->DrawIndirectBuffer,
 				 ctx->Shared->NullBufferObj);
+
+   _mesa_reference_buffer_object(ctx, &ctx->QueryBuffer,
+                                 ctx->Shared->NullBufferObj);
 
    for (i = 0; i < MAX_COMBINED_UNIFORM_BUFFERS; i++) {
       _mesa_reference_buffer_object(ctx,
