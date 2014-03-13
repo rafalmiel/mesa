@@ -123,6 +123,7 @@ static const struct extension extension_table[] = {
    { "GL_ARB_point_parameters",                    o(EXT_point_parameters),                    GLL,            1997 },
    { "GL_ARB_point_sprite",                        o(ARB_point_sprite),                        GL,             2003 },
    { "GL_ARB_provoking_vertex",                    o(EXT_provoking_vertex),                    GL,             2009 },
+   { "GL_ARB_query_buffer_object",                 o(ARB_query_buffer_object),                 GL,             2013 },
    { "GL_ARB_robustness",                          o(dummy_true),                              GL,             2010 },
    { "GL_ARB_sample_shading",                      o(ARB_sample_shading),                      GL,             2009 },
    { "GL_ARB_sampler_objects",                     o(dummy_true),                              GL,             2009 },
@@ -409,6 +410,7 @@ _mesa_enable_sw_extensions(struct gl_context *ctx)
    ctx->Extensions.ARB_occlusion_query = GL_TRUE;
    ctx->Extensions.ARB_occlusion_query2 = GL_TRUE;
    ctx->Extensions.ARB_point_sprite = GL_TRUE;
+   ctx->Extensions.ARB_query_buffer_object = GL_TRUE;
    ctx->Extensions.EXT_separate_shader_objects = GL_TRUE;
    ctx->Extensions.ARB_shadow = GL_TRUE;
    ctx->Extensions.ARB_texture_border_clamp = GL_TRUE;
