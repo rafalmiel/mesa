@@ -118,7 +118,6 @@ _mesa_check_query(struct gl_context *ctx, struct gl_query_object *q)
     */
 }
 
-
 /**
  * Delete a query object.  Called via ctx->Driver.DeleteQuery().
  * Not removed from hash table here.
@@ -129,7 +128,6 @@ _mesa_delete_query(struct gl_context *ctx, struct gl_query_object *q)
    free(q->Label);
    free(q);
 }
-
 
 void
 _mesa_init_query_object_functions(struct dd_function_table *driver)
@@ -186,7 +184,6 @@ get_query_binding_point(struct gl_context *ctx, GLenum target)
       return NULL;
    }
 }
-
 
 void GLAPIENTRY
 _mesa_GenQueries(GLsizei n, GLuint *ids)
@@ -296,6 +293,72 @@ query_error_check_index(struct gl_context *ctx, GLenum target, GLuint index)
       }
    }
    return GL_TRUE;
+}
+
+static void
+query_buffer_store_result(struct gl_context *ctx, struct gl_query_object *q,
+                          GLenum pname, GLenum type, GLsizeiptr size,
+                          GLsizeiptr offset, const char *caller)
+{
+   if (pname != GL_QUERY_RESULT_NO_WAIT
+       && pname != GL_QUERY_RESULT_ARB
+       && pname != GL_QUERY_RESULT_AVAILABLE_ARB) {
+      _mesa_error(ctx, GL_INVALID_ENUM, "%s(pname)", caller);
+      return;
+   }
+
+   /* ARB_query_buffer_object spec says:
+    *
+    *     "An INVALID_OPERATION error is generated if the command would
+    *     cause data to be written beyond the bounds of the buffer currently
+    *     bound to the QUERY_BUFFER target."
+    */
+   if (offset + size > ctx->QueryBuffer->Size) {
+      _mesa_error(ctx, GL_INVALID_OPERATION,
+                  "%s(buffer bounds exceeded)", caller);
+   } else {
+      ctx->Driver.SaveQueryBuffer(ctx, q, pname, type, offset);
+   }
+}
+
+/**
+ * This function is run by GetQueryObject{ui64}v functions.
+ * It stores the result of the query in QueryBuffer, if it is bound.
+ * Otherwise it just copies the value into params location.
+ */
+static void
+query_store_result(struct gl_context *ctx, void *params,
+                   GLuint size, void *data, const char *caller)
+{
+   /* Page 44 of the OpenGL 4.4 spec says:
+    *
+    *     "Initially, zero is bound to the QUERY_BUFFER binding point,
+    *     indicating that params is a pointer into client memory.
+    *     However, if a non-zero buffer object is bound as the current query
+    *     result buffer (see section 6.1), then params is treated as an offset
+    *     into the designated buffer object."
+    */
+   if (ctx->Extensions.ARB_query_buffer_object
+       && ctx->QueryBuffer != ctx->Shared->NullBufferObj) {
+      GLsizeiptr offset = (GLsizeiptr)params;
+
+      /* ARB_query_buffer_object spec says:
+       *
+       *     "An INVALID_OPERATION error is generated if the command would
+       *     cause data to be written beyond the bounds of the buffer currently
+       *     bound to the QUERY_BUFFER target."
+       */
+      if (offset + size > ctx->QueryBuffer->Size) {
+         _mesa_error(ctx, GL_INVALID_OPERATION,
+                     "%s(buffer bounds exceeded)", caller);
+         return;
+      }
+
+      ctx->Driver.BufferSubData(ctx, offset, size, data,
+                                ctx->QueryBuffer);
+   } else {
+      memcpy(params, data, size);
+   }
 }
 
 void GLAPIENTRY
@@ -578,6 +641,7 @@ void GLAPIENTRY
 _mesa_GetQueryObjectiv(GLuint id, GLenum pname, GLint *params)
 {
    struct gl_query_object *q = NULL;
+   GLint result;
    GET_CURRENT_CONTEXT(ctx);
 
    if (MESA_VERBOSE & VERBOSE_API)
@@ -593,6 +657,25 @@ _mesa_GetQueryObjectiv(GLuint id, GLenum pname, GLint *params)
       return;
    }
 
+   if (ctx->Extensions.ARB_query_buffer_object) {
+      /* Page 44 of the OpenGL 4.4 spec says:
+       *
+       *     "Initially, zero is bound to the QUERY_BUFFER binding point,
+       *     indicating that params is a pointer into client memory.
+       *     However, if a non-zero buffer object is bound as the current query
+       *     result buffer (see section 6.1), then params is treated as an
+       *     offset into the designated buffer object."
+       */
+      if (ctx->QueryBuffer != ctx->Shared->NullBufferObj) {
+         if (ctx->Driver.SaveQueryBuffer) {
+            query_buffer_store_result(ctx, q, pname, GL_INT,
+                                      sizeof(*params), (GLsizeiptr)params,
+                                      "glGetQueryObjectivARB");
+            return;
+         }
+      }
+   }
+
    switch (pname) {
       case GL_QUERY_RESULT_NO_WAIT:
          if (!q->Ready)
@@ -605,27 +688,30 @@ _mesa_GetQueryObjectiv(GLuint id, GLenum pname, GLint *params)
          if (q->Target == GL_ANY_SAMPLES_PASSED
              || q->Target == GL_ANY_SAMPLES_PASSED_CONSERVATIVE) {
             if (q->Result)
-               *params = GL_TRUE;
+               result = GL_TRUE;
             else
-               *params = GL_FALSE;
+               result = GL_FALSE;
          } else {
             if (q->Result > 0x7fffffff) {
-               *params = 0x7fffffff;
+               result = 0x7fffffff;
             }
             else {
-               *params = (GLint)q->Result;
+               result = (GLint)q->Result;
             }
          }
          break;
       case GL_QUERY_RESULT_AVAILABLE_ARB:
 	 if (!q->Ready)
 	    ctx->Driver.CheckQuery( ctx, q );
-         *params = q->Ready;
+         result = q->Ready;
          break;
       default:
          _mesa_error(ctx, GL_INVALID_ENUM, "glGetQueryObjectivARB(pname)");
          return;
    }
+
+   query_store_result(ctx, params, sizeof(result), &result,
+                      "glGetQueryObjectivARB");
 }
 
 
@@ -633,6 +719,7 @@ void GLAPIENTRY
 _mesa_GetQueryObjectuiv(GLuint id, GLenum pname, GLuint *params)
 {
    struct gl_query_object *q = NULL;
+   GLuint result = 0;
    GET_CURRENT_CONTEXT(ctx);
 
    if (MESA_VERBOSE & VERBOSE_API)
@@ -648,6 +735,25 @@ _mesa_GetQueryObjectuiv(GLuint id, GLenum pname, GLuint *params)
       return;
    }
 
+   if (ctx->Extensions.ARB_query_buffer_object) {
+      /* Page 44 of the OpenGL 4.4 spec says:
+       *
+       *     "Initially, zero is bound to the QUERY_BUFFER binding point,
+       *     indicating that params is a pointer into client memory.
+       *     However, if a non-zero buffer object is bound as the current query
+       *     result buffer (see section 6.1), then params is treated as an
+       *     offset into the designated buffer object."
+       */
+      if (ctx->QueryBuffer != ctx->Shared->NullBufferObj) {
+         if (ctx->Driver.SaveQueryBuffer) {
+            query_buffer_store_result(ctx, q, pname, GL_UNSIGNED_INT,
+                                      sizeof(*params), (GLsizeiptr)params,
+                                      "glGetQueryObjectuivARB");
+            return;
+         }
+      }
+   }
+
    switch (pname) {
       case GL_QUERY_RESULT_NO_WAIT:
          if (!q->Ready)
@@ -660,27 +766,30 @@ _mesa_GetQueryObjectuiv(GLuint id, GLenum pname, GLuint *params)
          if (q->Target == GL_ANY_SAMPLES_PASSED
              || q->Target == GL_ANY_SAMPLES_PASSED_CONSERVATIVE) {
             if (q->Result)
-               *params = GL_TRUE;
+               result = GL_TRUE;
             else
-               *params = GL_FALSE;
+               result = GL_FALSE;
          } else {
             if (q->Result > 0xffffffff) {
-               *params = 0xffffffff;
+               result = 0xffffffff;
             }
             else {
-               *params = (GLuint)q->Result;
+               result = (GLuint)q->Result;
             }
          }
          break;
       case GL_QUERY_RESULT_AVAILABLE_ARB:
 	 if (!q->Ready)
 	    ctx->Driver.CheckQuery( ctx, q );
-         *params = q->Ready;
+         result = q->Ready;
          break;
       default:
          _mesa_error(ctx, GL_INVALID_ENUM, "glGetQueryObjectuivARB(pname)");
          return;
    }
+
+   query_store_result(ctx, params, sizeof(result), &result,
+                      "glGetQueryObjectuivARB");
 }
 
 
@@ -691,6 +800,7 @@ void GLAPIENTRY
 _mesa_GetQueryObjecti64v(GLuint id, GLenum pname, GLint64EXT *params)
 {
    struct gl_query_object *q = NULL;
+   GLint64EXT result = 0;
    GET_CURRENT_CONTEXT(ctx);
 
    if (MESA_VERBOSE & VERBOSE_API)
@@ -706,6 +816,25 @@ _mesa_GetQueryObjecti64v(GLuint id, GLenum pname, GLint64EXT *params)
       return;
    }
 
+   if (ctx->Extensions.ARB_query_buffer_object) {
+      /* Page 44 of the OpenGL 4.4 spec says:
+       *
+       *     "Initially, zero is bound to the QUERY_BUFFER binding point,
+       *     indicating that params is a pointer into client memory.
+       *     However, if a non-zero buffer object is bound as the current query
+       *     result buffer (see section 6.1), then params is treated as an
+       *     offset into the designated buffer object."
+       */
+      if (ctx->QueryBuffer != ctx->Shared->NullBufferObj) {
+         if (ctx->Driver.SaveQueryBuffer) {
+            query_buffer_store_result(ctx, q, pname, GL_INT64_NV,
+                                      sizeof(*params), (GLsizeiptr)params,
+                                      "glGetQueryObjecti64vARB");
+            return;
+         }
+      }
+   }
+
    switch (pname) {
       case GL_QUERY_RESULT_NO_WAIT:
          if (!q->Ready)
@@ -714,17 +843,20 @@ _mesa_GetQueryObjecti64v(GLuint id, GLenum pname, GLint64EXT *params)
       case GL_QUERY_RESULT_ARB:
          if (!q->Ready)
             ctx->Driver.WaitQuery(ctx, q);
-         *params = q->Result;
+         result = q->Result;
          break;
       case GL_QUERY_RESULT_AVAILABLE_ARB:
 	 if (!q->Ready)
 	    ctx->Driver.CheckQuery( ctx, q );
-         *params = q->Ready;
+         result = q->Ready;
          break;
       default:
          _mesa_error(ctx, GL_INVALID_ENUM, "glGetQueryObjecti64vARB(pname)");
          return;
    }
+
+   query_store_result(ctx, params, sizeof(result), &result,
+                      "glGetQueryObjecti64vARB");
 }
 
 
@@ -735,6 +867,7 @@ void GLAPIENTRY
 _mesa_GetQueryObjectui64v(GLuint id, GLenum pname, GLuint64EXT *params)
 {
    struct gl_query_object *q = NULL;
+   GLuint64EXT result = 0;
    GET_CURRENT_CONTEXT(ctx);
 
    if (MESA_VERBOSE & VERBOSE_API)
@@ -750,6 +883,25 @@ _mesa_GetQueryObjectui64v(GLuint id, GLenum pname, GLuint64EXT *params)
       return;
    }
 
+   if (ctx->Extensions.ARB_query_buffer_object) {
+      /* Page 44 of the OpenGL 4.4 spec says:
+       *
+       *     "Initially, zero is bound to the QUERY_BUFFER binding point,
+       *     indicating that params is a pointer into client memory.
+       *     However, if a non-zero buffer object is bound as the current query
+       *     result buffer (see section 6.1), then params is treated as an
+       *     offset into the designated buffer object."
+       */
+      if (ctx->QueryBuffer != ctx->Shared->NullBufferObj) {
+         if (ctx->Driver.SaveQueryBuffer) {
+            query_buffer_store_result(ctx, q, pname, GL_UNSIGNED_INT64_NV,
+                                      sizeof(*params), (GLsizeiptr)params,
+                                      "glGetQueryObjectui64vARB");
+            return;
+         }
+      }
+   }
+
    switch (pname) {
       case GL_QUERY_RESULT_NO_WAIT:
          if (!q->Ready)
@@ -758,17 +910,20 @@ _mesa_GetQueryObjectui64v(GLuint id, GLenum pname, GLuint64EXT *params)
       case GL_QUERY_RESULT_ARB:
          if (!q->Ready)
             ctx->Driver.WaitQuery(ctx, q);
-         *params = q->Result;
+         result = q->Result;
          break;
       case GL_QUERY_RESULT_AVAILABLE_ARB:
 	 if (!q->Ready)
 	    ctx->Driver.CheckQuery( ctx, q );
-         *params = q->Ready;
+         result = q->Ready;
          break;
       default:
          _mesa_error(ctx, GL_INVALID_ENUM, "glGetQueryObjectui64vARB(pname)");
          return;
    }
+
+   query_store_result(ctx, params, sizeof(result), &result,
+                      "glGetQueryObjectui64vARB");
 }
 
 /**

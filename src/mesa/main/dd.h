@@ -688,6 +688,14 @@ struct dd_function_table {
    /*@}*/
 
    /**
+    * \name Query buffer object
+    */
+   /*@{*/
+   void (*SaveQueryBuffer)(struct gl_context *ctx, struct gl_query_object *q,
+                           GLenum pname, GLenum type, GLsizeiptr offset);
+   /*@}*/
+
+   /**
     * \name Performance monitors
     */
    /*@{*/

@@ -181,6 +181,7 @@ intelInitExtensions(struct gl_context *ctx)
    ctx->Extensions.ARB_occlusion_query = true;
    ctx->Extensions.ARB_occlusion_query2 = true;
    ctx->Extensions.ARB_point_sprite = true;
+   ctx->Extensions.ARB_query_buffer_object = true;
    ctx->Extensions.ARB_seamless_cube_map = true;
    ctx->Extensions.ARB_shader_bit_encoding = true;
    ctx->Extensions.ARB_shader_texture_lod = true;
