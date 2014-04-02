@@ -189,6 +189,66 @@ get_query_binding_point(struct gl_context *ctx, GLenum target)
 
 
 /**
+ * Check if the QueryBuffer is bound
+ */
+static bool
+query_buffer_is_bound(struct gl_context *ctx)
+{
+   return (ctx->QueryBuffer != ctx->Shared->NullBufferObj);
+}
+
+
+/**
+ * Check if write on given offset and size of QueryBuffer object is safe.
+ * Generates GL_INVALID_OPERATION mesa error when write would cause
+ * access beyond buffer bounds.
+ */
+static bool
+query_buffer_check_bounds(struct gl_context *ctx,
+                          GLsizeiptr offset, GLuint size, const char *caller)
+{
+   /* ARB_query_buffer_object spec says:
+    *
+    *     "An INVALID_OPERATION error is generated if the command would
+    *     cause data to be written beyond the bounds of the buffer currently
+    *     bound to the QUERY_BUFFER target."
+    */
+   if (offset + size > ctx->QueryBuffer->Size) {
+      _mesa_error(ctx, GL_INVALID_OPERATION,
+                  "%s(buffer bounds exceeded)", caller);
+      return false;
+   }
+
+   return true;
+}
+
+
+/**
+ * Calls Driver.StoreQueryBufferObject if it is set and if QueryBuffer is bound.
+ * Returns true if driver hook was called, so that caller can halt
+ * futher execution.
+ */
+static bool
+query_store_result_driver(struct gl_context *ctx, struct gl_query_object *q,
+                          GLsizeiptr offset, GLuint size, const char *caller)
+{
+   if (ctx->Extensions.ARB_query_buffer_object
+       && ctx->Driver.StoreQueryBufferObject
+       && query_buffer_is_bound(ctx)) {
+
+      /* Check if write on given offset would fall beyond
+       * query buffer object bounds. */
+      if (query_buffer_check_bounds(ctx, offset, size, caller)) {
+         ctx->Driver.StoreQueryBufferObject(ctx, q, offset, size);
+      }
+
+      return true;
+   }
+
+   return false;
+}
+
+/**
  * This function is called by GetQueryObject{ui64}v functions.
  * If QueryBuffer is bound, it stores the result in it,
  * otherwise it copies the value into params location.
@@ -210,23 +270,15 @@ query_store_result(struct gl_context *ctx, void *params,
     *     into the designated buffer object."
     */
    if (ctx->Extensions.ARB_query_buffer_object
-       && ctx->QueryBuffer != ctx->Shared->NullBufferObj) {
+       && query_buffer_is_bound(ctx)) {
       GLsizeiptr offset = (GLsizeiptr)params;
 
-      /* ARB_query_buffer_object spec says:
-       *
-       *     "An INVALID_OPERATION error is generated if the command would
-       *     cause data to be written beyond the bounds of the buffer currently
-       *     bound to the QUERY_BUFFER target."
-       */
-      if (offset + size > ctx->QueryBuffer->Size) {
-         _mesa_error(ctx, GL_INVALID_OPERATION,
-                     "%s(buffer bounds exceeded)", caller);
-         return;
+      /* Check if write on given offset would fall beyond
+       * query buffer object bounds. */
+      if (query_buffer_check_bounds(ctx, offset, size, caller)) {
+         ctx->Driver.BufferSubData(ctx, offset, size, data,
+                                   ctx->QueryBuffer);
       }
-
-      ctx->Driver.BufferSubData(ctx, offset, size, data,
-                                ctx->QueryBuffer);
    } else {
       memcpy(params, data, size);
    }
@@ -645,6 +697,11 @@ _mesa_GetQueryObjectiv(GLuint id, GLenum pname, GLint *params)
             return;
          /* fallthrough */
       case GL_QUERY_RESULT_ARB:
+         if (query_store_result_driver(ctx, q,
+                                       (GLsizeiptr)params, sizeof(*params),
+                                       "glGetQueryObjectivARB")) {
+            return;
+         }
          if (!q->Ready)
             ctx->Driver.WaitQuery(ctx, q);
          /* if result is too large for returned type, clamp to max value */
@@ -704,6 +761,11 @@ _mesa_GetQueryObjectuiv(GLuint id, GLenum pname, GLuint *params)
             return;
          /* fallthrough */
       case GL_QUERY_RESULT_ARB:
+         if (query_store_result_driver(ctx, q,
+                                       (GLsizeiptr)params, sizeof(*params),
+                                       "glGetQueryObjectuivARB")) {
+            return;
+         }
          if (!q->Ready)
             ctx->Driver.WaitQuery(ctx, q);
          /* if result is too large for returned type, clamp to max value */
@@ -766,6 +828,11 @@ _mesa_GetQueryObjecti64v(GLuint id, GLenum pname, GLint64EXT *params)
             return;
          /* fallthrough */
       case GL_QUERY_RESULT_ARB:
+         if (query_store_result_driver(ctx, q,
+                                       (GLsizeiptr)params, sizeof(*params),
+                                       "glGetQueryObjecti64vARB")) {
+            return;
+         }
          if (!q->Ready)
             ctx->Driver.WaitQuery(ctx, q);
          result = q->Result;
@@ -814,6 +881,11 @@ _mesa_GetQueryObjectui64v(GLuint id, GLenum pname, GLuint64EXT *params)
             return;
          /* fallthrough */
       case GL_QUERY_RESULT_ARB:
+         if (query_store_result_driver(ctx, q,
+                                       (GLsizeiptr)params, sizeof(*params),
+                                       "glGetQueryObjectui64vARB")) {
+            return;
+         }
          if (!q->Ready)
             ctx->Driver.WaitQuery(ctx, q);
          result = q->Result;

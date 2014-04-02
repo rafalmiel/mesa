@@ -688,6 +688,15 @@ struct dd_function_table {
    /*@}*/
 
    /**
+    * \name Query buffer objects
+    */
+   /*@{*/
+   void (*StoreQueryBufferObject)(struct gl_context *ctx,
+                                  struct gl_query_object *q,
+                                  GLsizeiptr offset, GLsizeiptr size);
+   /*@}*/
+
+   /**
     * \name Performance monitors
     */
    /*@{*/
