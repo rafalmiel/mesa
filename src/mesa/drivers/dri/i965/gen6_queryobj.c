@@ -82,6 +82,31 @@ brw_store_register_mem64(struct brw_context *brw,
    }
 }
 
+/*
+ * Writes an arbitrary value to a 64bit register via MI_LOAD_REGISTER_IMM.
+ *
+ * Callers must explicitly flush the pipeline to ensure the desired value is
+ * available
+ */
+void
+brw_load_register_imm64(struct brw_context *brw,
+                        uint32_t reg, uint64_t value)
+{
+   assert(brw->gen >= 6);
+
+   /* MI_LOAD_REGISTER_IMM only writes a single 32-bit value, so to
+    * write a full 64-bit register, we need to do two of them.
+    */
+   BEGIN_BATCH(6);
+   OUT_BATCH(MI_LOAD_REGISTER_IMM | (3-2));
+   OUT_BATCH(reg);
+   OUT_BATCH((uint32_t)(value >> 32));
+   OUT_BATCH(MI_LOAD_REGISTER_IMM | (3-2));
+   OUT_BATCH(reg + sizeof(uint32_t));
+   OUT_BATCH((uint32_t)value);
+   ADVANCE_BATCH();
+}
+
 static void
 write_primitives_generated(struct brw_context *brw,
                            drm_intel_bo *query_bo, int idx)
