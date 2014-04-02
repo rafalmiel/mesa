@@ -37,6 +37,8 @@
 #include "brw_defines.h"
 #include "brw_state.h"
 #include "intel_batchbuffer.h"
+#include "intel_blit.h"
+#include "intel_buffer_objects.h"
 #include "intel_reg.h"
 
 /*
@@ -105,6 +107,34 @@ brw_load_register_imm64(struct brw_context *brw,
    OUT_BATCH(reg + sizeof(uint32_t));
    OUT_BATCH((uint32_t)value);
    ADVANCE_BATCH();
+}
+
+static void
+reset_depth_count_register(struct brw_context *brw)
+{
+   intel_batchbuffer_emit_mi_flush(brw);
+
+   brw_load_register_imm64(brw, PS_DEPTH_COUNT, 0);
+}
+
+static void
+reset_primitives_generated_register(struct brw_context *brw)
+{
+   intel_batchbuffer_emit_mi_flush(brw);
+
+   brw_load_register_imm64(brw, CL_INVOCATION_COUNT, 0);
+}
+
+static void
+reset_xfb_primitives_register(struct brw_context *brw)
+{
+   intel_batchbuffer_emit_mi_flush(brw);
+
+   if (brw->gen >= 7) {
+      brw_load_register_imm64(brw, GEN7_SO_NUM_PRIMS_WRITTEN(0), 0);
+   } else {
+      brw_load_register_imm64(brw, GEN6_SO_NUM_PRIMS_WRITTEN, 0);
+   }
 }
 
 static void
@@ -191,18 +221,18 @@ gen6_queryobj_get_results(struct gl_context *ctx,
       /* We need to use += rather than = here since some BLT-based operations
        * may have added additional samples to our occlusion query value.
        */
-      query->Base.Result += results[1] - results[0];
+      query->Base.Result = results[0];
       break;
 
    case GL_ANY_SAMPLES_PASSED:
    case GL_ANY_SAMPLES_PASSED_CONSERVATIVE:
-      if (results[0] != results[1])
+      if (results[0] > 0)
          query->Base.Result = true;
       break;
 
    case GL_PRIMITIVES_GENERATED:
    case GL_TRANSFORM_FEEDBACK_PRIMITIVES_WRITTEN:
-      query->Base.Result = results[1] - results[0];
+      query->Base.Result = results[0];
       break;
 
    default:
@@ -261,15 +291,15 @@ gen6_begin_query(struct gl_context *ctx, struct gl_query_object *q)
    case GL_ANY_SAMPLES_PASSED:
    case GL_ANY_SAMPLES_PASSED_CONSERVATIVE:
    case GL_SAMPLES_PASSED_ARB:
-      brw_write_depth_count(brw, query->bo, 0);
+      reset_depth_count_register(brw);
       break;
 
    case GL_PRIMITIVES_GENERATED:
-      write_primitives_generated(brw, query->bo, 0);
+      reset_primitives_generated_register(brw);
       break;
 
    case GL_TRANSFORM_FEEDBACK_PRIMITIVES_WRITTEN:
-      write_xfb_primitives_written(brw, query->bo, 0);
+      reset_xfb_primitives_register(brw);
       break;
 
    default:
@@ -300,15 +330,15 @@ gen6_end_query(struct gl_context *ctx, struct gl_query_object *q)
    case GL_ANY_SAMPLES_PASSED:
    case GL_ANY_SAMPLES_PASSED_CONSERVATIVE:
    case GL_SAMPLES_PASSED_ARB:
-      brw_write_depth_count(brw, query->bo, 1);
+      brw_write_depth_count(brw, query->bo, 0);
       break;
 
    case GL_PRIMITIVES_GENERATED:
-      write_primitives_generated(brw, query->bo, 1);
+      write_primitives_generated(brw, query->bo, 0);
       break;
 
    case GL_TRANSFORM_FEEDBACK_PRIMITIVES_WRITTEN:
-      write_xfb_primitives_written(brw, query->bo, 1);
+      write_xfb_primitives_written(brw, query->bo, 0);
       break;
 
    default:
@@ -358,6 +388,17 @@ static void gen6_check_query(struct gl_context *ctx, struct gl_query_object *q)
    }
 }
 
+static void gen6_store_query_buffer_object(struct gl_context *ctx,
+                                           struct gl_query_object *q,
+                                           GLsizeiptr offset, GLsizeiptr size)
+{
+   struct brw_context *brw = brw_context(ctx);
+   struct brw_query_object *query = (struct brw_query_object *)q;
+   struct intel_buffer_object *bo = intel_buffer_object(ctx->QueryBuffer);
+
+   intel_emit_linear_blit(brw, bo->buffer, offset, query->bo, 0, size);
+}
+
 /* Initialize Gen6+-specific query object functions. */
 void gen6_init_queryobj_functions(struct dd_function_table *functions)
 {
@@ -365,4 +406,6 @@ void gen6_init_queryobj_functions(struct dd_function_table *functions)
    functions->EndQuery = gen6_end_query;
    functions->CheckQuery = gen6_check_query;
    functions->WaitQuery = gen6_wait_query;
+
+   functions->StoreQueryBufferObject = gen6_store_query_buffer_object;
 }
