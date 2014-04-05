@@ -131,6 +131,12 @@ _mesa_delete_query(struct gl_context *ctx, struct gl_query_object *q)
 }
 
 
+static bool
+_mesa_query_is_ready(struct gl_context *ctx, struct gl_query_object *q)
+{
+   return q->Ready;
+}
+
 void
 _mesa_init_query_object_functions(struct dd_function_table *driver)
 {
@@ -140,6 +146,7 @@ _mesa_init_query_object_functions(struct dd_function_table *driver)
    driver->EndQuery = _mesa_end_query;
    driver->WaitQuery = _mesa_wait_query;
    driver->CheckQuery = _mesa_check_query;
+   driver->QueryIsReady = _mesa_query_is_ready;
 }
 
 
@@ -693,7 +700,7 @@ _mesa_GetQueryObjectiv(GLuint id, GLenum pname, GLint *params)
 
    switch (pname) {
       case GL_QUERY_RESULT_NO_WAIT:
-         if (!q->Ready)
+         if (!ctx->Driver.QueryIsReady(ctx, q))
             return;
          /* fallthrough */
       case GL_QUERY_RESULT_ARB:
@@ -702,7 +709,7 @@ _mesa_GetQueryObjectiv(GLuint id, GLenum pname, GLint *params)
                                        "glGetQueryObjectivARB")) {
             return;
          }
-         if (!q->Ready)
+         if (!ctx->Driver.QueryIsReady(ctx, q))
             ctx->Driver.WaitQuery(ctx, q);
          /* if result is too large for returned type, clamp to max value */
          if (q->Target == GL_ANY_SAMPLES_PASSED
@@ -721,9 +728,9 @@ _mesa_GetQueryObjectiv(GLuint id, GLenum pname, GLint *params)
          }
          break;
       case GL_QUERY_RESULT_AVAILABLE_ARB:
-	 if (!q->Ready)
+         if (!ctx->Driver.QueryIsReady(ctx, q))
 	    ctx->Driver.CheckQuery( ctx, q );
-         result = q->Ready;
+         result = ctx->Driver.QueryIsReady(ctx, q);
          break;
       default:
          _mesa_error(ctx, GL_INVALID_ENUM, "glGetQueryObjectivARB(pname)");
@@ -757,7 +764,7 @@ _mesa_GetQueryObjectuiv(GLuint id, GLenum pname, GLuint *params)
 
    switch (pname) {
       case GL_QUERY_RESULT_NO_WAIT:
-         if (!q->Ready)
+         if (!ctx->Driver.QueryIsReady(ctx, q))
             return;
          /* fallthrough */
       case GL_QUERY_RESULT_ARB:
@@ -766,7 +773,7 @@ _mesa_GetQueryObjectuiv(GLuint id, GLenum pname, GLuint *params)
                                        "glGetQueryObjectuivARB")) {
             return;
          }
-         if (!q->Ready)
+         if (!ctx->Driver.QueryIsReady(ctx, q))
             ctx->Driver.WaitQuery(ctx, q);
          /* if result is too large for returned type, clamp to max value */
          if (q->Target == GL_ANY_SAMPLES_PASSED
@@ -785,9 +792,9 @@ _mesa_GetQueryObjectuiv(GLuint id, GLenum pname, GLuint *params)
          }
          break;
       case GL_QUERY_RESULT_AVAILABLE_ARB:
-	 if (!q->Ready)
+         if (!ctx->Driver.QueryIsReady(ctx, q))
 	    ctx->Driver.CheckQuery( ctx, q );
-         result = q->Ready;
+         result = ctx->Driver.QueryIsReady(ctx, q);
          break;
       default:
          _mesa_error(ctx, GL_INVALID_ENUM, "glGetQueryObjectuivARB(pname)");
@@ -824,7 +831,7 @@ _mesa_GetQueryObjecti64v(GLuint id, GLenum pname, GLint64EXT *params)
 
    switch (pname) {
       case GL_QUERY_RESULT_NO_WAIT:
-         if (!q->Ready)
+         if (!ctx->Driver.QueryIsReady(ctx, q))
             return;
          /* fallthrough */
       case GL_QUERY_RESULT_ARB:
@@ -833,14 +840,14 @@ _mesa_GetQueryObjecti64v(GLuint id, GLenum pname, GLint64EXT *params)
                                        "glGetQueryObjecti64vARB")) {
             return;
          }
-         if (!q->Ready)
+         if (!ctx->Driver.QueryIsReady(ctx,q))
             ctx->Driver.WaitQuery(ctx, q);
          result = q->Result;
          break;
       case GL_QUERY_RESULT_AVAILABLE_ARB:
-	 if (!q->Ready)
+         if (!ctx->Driver.QueryIsReady(ctx,q))
 	    ctx->Driver.CheckQuery( ctx, q );
-         result = q->Ready;
+         result = ctx->Driver.QueryIsReady(ctx,q);
          break;
       default:
          _mesa_error(ctx, GL_INVALID_ENUM, "glGetQueryObjecti64vARB(pname)");
@@ -877,7 +884,7 @@ _mesa_GetQueryObjectui64v(GLuint id, GLenum pname, GLuint64EXT *params)
 
    switch (pname) {
       case GL_QUERY_RESULT_NO_WAIT:
-         if (!q->Ready)
+         if (!ctx->Driver.QueryIsReady(ctx,q))
             return;
          /* fallthrough */
       case GL_QUERY_RESULT_ARB:
@@ -886,14 +893,14 @@ _mesa_GetQueryObjectui64v(GLuint id, GLenum pname, GLuint64EXT *params)
                                        "glGetQueryObjectui64vARB")) {
             return;
          }
-         if (!q->Ready)
+         if (!ctx->Driver.QueryIsReady(ctx,q))
             ctx->Driver.WaitQuery(ctx, q);
          result = q->Result;
          break;
       case GL_QUERY_RESULT_AVAILABLE_ARB:
-	 if (!q->Ready)
+         if (!ctx->Driver.QueryIsReady(ctx,q))
 	    ctx->Driver.CheckQuery( ctx, q );
-         result = q->Ready;
+         result = ctx->Driver.QueryIsReady(ctx,q);
          break;
       default:
          _mesa_error(ctx, GL_INVALID_ENUM, "glGetQueryObjectui64vARB(pname)");

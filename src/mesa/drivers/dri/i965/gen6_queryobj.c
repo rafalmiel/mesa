@@ -399,6 +399,16 @@ static void gen6_store_query_buffer_object(struct gl_context *ctx,
    intel_emit_linear_blit(brw, bo->buffer, offset, query->bo, 0, size);
 }
 
+static bool gen6_query_is_ready(struct gl_context *ctx,
+                                struct gl_query_object *q)
+{
+   if (ctx->QueryBuffer == ctx->Shared->NullBufferObj) {
+      return q->Ready;
+   } else {
+      return true;
+   }
+}
+
 /* Initialize Gen6+-specific query object functions. */
 void gen6_init_queryobj_functions(struct dd_function_table *functions)
 {
@@ -408,4 +418,5 @@ void gen6_init_queryobj_functions(struct dd_function_table *functions)
    functions->WaitQuery = gen6_wait_query;
 
    functions->StoreQueryBufferObject = gen6_store_query_buffer_object;
+   functions->QueryIsReady = gen6_query_is_ready;
 }

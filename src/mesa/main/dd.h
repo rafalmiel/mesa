@@ -694,6 +694,8 @@ struct dd_function_table {
    void (*StoreQueryBufferObject)(struct gl_context *ctx,
                                   struct gl_query_object *q,
                                   GLsizeiptr offset, GLsizeiptr size);
+   bool (*QueryIsReady)(struct gl_context *ctx,
+                        struct gl_query_object *q);
    /*@}*/
 
    /**
